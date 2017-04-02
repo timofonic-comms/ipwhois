@@ -25,8 +25,9 @@
 from . import Net
 from .asn import IPASN
 from .nir import NIRWhois
+from .jp import JPWhois
 import logging
-
+logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
@@ -156,7 +157,7 @@ class IPWhois:
 
         # Add the ASN information to the return dictionary.
         results.update(asn_data)
-
+        log.debug(results)
         # Retrieve the whois data and parse.
         whois = Whois(self.net)
         log.debug('WHOIS lookup for {0}'.format(self.address_str))
@@ -175,6 +176,14 @@ class IPWhois:
             nir = None
             if 'JP' == asn_data['asn_country_code']:
                 nir = 'jpnic'
+                jp_whois = JPWhois(self.net)
+                jp_data = jp_whois.lookup(
+                    inc_raw=inc_raw, retry_count=retry_count,
+                    response=None,
+                    field_list=nir_field_list
+                )
+                results['jp'] = jp_data
+                return results
             elif 'KR' == asn_data['asn_country_code']:
                 nir = 'krnic'
 

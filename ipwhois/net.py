@@ -470,7 +470,7 @@ class Net:
 
 
     def get_whois(self, asn_registry='arin', retry_count=3, server=None,
-                  port=43, extra_blacklist=None):
+                  port=43, extra_blacklist=None, encoding='ascii'):
         """
         The function for retrieving whois or rwhois information for an IP
         address via any port. Defaults to port 43/tcp (WHOIS).
@@ -529,7 +529,8 @@ class Net:
             response = ''
             while True:
 
-                d = conn.recv(4096).decode('ascii', 'ignore')
+                #d = conn.recv(4096).decode('ascii', 'ignore')
+                d = conn.recv(4096).decode(encoding, 'ignore')
 
                 response += d
 

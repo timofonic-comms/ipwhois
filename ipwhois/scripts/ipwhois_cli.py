@@ -25,6 +25,7 @@
 # CLI python script interface for ipwhois.IPWhois lookups.
 
 import argparse
+from collections import namedtuple
 import json
 from os import path
 from ipwhois import IPWhois
@@ -319,6 +320,43 @@ script_args = parser.parse_args()
 CUR_DIR = path.dirname(__file__)
 
 
+def output_rdap_generic(source, key, val, hr=True, show_name=False):
+    """
+    The function processing and returning common RDAP output values.
+
+    Args:
+        source (:obj:`dict`): The event source (required).
+        key (:obj:`str`): The event data key (required).
+        val (:obj:`dict`): The event data value (required).
+        hr (:obj:`bool`): Enable human readable key translations. Defaults
+                to True.
+        show_name (:obj:`bool`): Show human readable name (default is to
+            only show short). Defaults to False.
+
+    Returns:
+        namedtuple:
+
+        :short (:obj:`str`): The abbreviated name for a field. See hr.py for
+            values.
+        :name (:obj:`str`): The name for a field. See hr.py for values.
+        :is_parent (:obj:`bool`):
+        :result (:obj:`str`): The result value.
+    """
+
+    short = HR_RDAP[source][key]['_short'] if hr else key,
+    name = HR_RDAP[source][key]['_name'] if (hr and show_name) else None,
+    is_parent = False if (val is None or
+                          len(val) == 0) else True,
+    result = 'None' if (val is None or
+                        len(val) == 0) else val,
+
+    # Initialize the results named tuple
+    output = namedtuple('generate_output_rdap_generic',
+                        'short, name, is_parent, result')
+
+    return output(short, name, is_parent, result)
+
+
 def generate_output(line='0', short=None, name=None, value=None,
                     is_parent=False, colorize=True):
     """
@@ -355,6 +393,101 @@ def generate_output(line='0', short=None, name=None, value=None,
         ANSI['end'] if colorize else '',
         '' if is_parent else value
     )
+
+    return output
+
+
+def is_multiline(value=None):
+    """
+    The function for determining if a string has multiple lines.
+
+    Args:
+        value (:obj:`str`): The value to check.
+
+    Returns:
+        bool: True if line endings are detected, otherwise False.
+    """
+
+    return True if value and '\n' in value else False
+
+
+def output_multiline(value=None, line='0', colorize=True):
+    """
+    The function for providing output for strings with multiple lines.
+
+    Args:
+        value (:obj:`str`): The value to output.
+        line (:obj:`str`): The line number (0-4). Determines indentation.
+            Defaults to '0'.
+        colorize (:obj:`bool`): Colorize the console output with ANSI colors.
+            Defaults to True.
+
+    Returns:
+        str: The generated output.
+    """
+
+    output = ''
+    for v in value.split('\n'):
+
+        output += generate_output(
+            line=line,
+            value=v,
+            colorize=colorize
+        )
+
+    return output
+
+
+def output_whois_generic(value=None, line='0', hr=True, show_name=False,
+                         colorize=True):
+    """
+    The function for providing output for strings with multiple lines.
+
+    Args:
+        value (:obj:`dict`): The event dictionary (required).
+        line (:obj:`str`): The line number (0-4). Determines indentation.
+            Defaults to '0'.
+        hr (:obj:`bool`): Enable human readable key translations. Defaults
+                to True.
+        show_name (:obj:`bool`): Show human readable name (default is to
+            only show short). Defaults to False.
+        colorize (:obj:`bool`): Colorize the console output with ANSI
+            colors. Defaults to True.
+
+    Returns:
+        str: The generated output.
+    """
+
+    output = ''
+    for key, val in value.items():
+
+        if is_multiline(value=val):
+
+            output += generate_output(
+                line=line,
+                short=HR_WHOIS['nets'][key]['_short'] if hr else key,
+                name=HR_WHOIS['nets'][key]['_name'] if (
+                    hr and show_name) else None,
+                is_parent=False if (val is None or
+                                    len(val) == 0) else True,
+                value='None' if (val is None or
+                                 len(val) == 0) else None,
+                colorize=colorize
+            )
+
+            output += output_multiline(
+                value=val, line=int(line)+1, colorize=colorize)
+
+        else:
+
+            output += generate_output(
+                line=line,
+                short=HR_WHOIS['nets'][key]['_short'] if hr else key,
+                name=HR_WHOIS['nets'][key]['_name'] if (
+                    hr and show_name) else None,
+                value=val,
+                colorize=colorize
+            )
 
     return output
 
@@ -573,14 +706,16 @@ class IPWhoisCLI:
             str: The generated output.
         """
 
+        short_eval, name_eval, is_parent, value_eval = output_rdap_generic(
+            source=source, key=key, val=val, hr=hr, show_name=show_name
+        )
+
         output = generate_output(
             line=line,
-            short=HR_RDAP[source][key]['_short'] if hr else key,
-            name=HR_RDAP[source][key]['_name'] if (hr and show_name) else None,
-            is_parent=False if (val is None or
-                                len(val) == 0) else True,
-            value='None' if (val is None or
-                             len(val) == 0) else None,
+            short=short_eval,
+            name=name_eval,
+            value=value_eval,
+            is_parent=is_parent,
             colorize=colorize
         )
 
@@ -669,14 +804,16 @@ class IPWhoisCLI:
             str: The generated output.
         """
 
+        short_eval, name_eval, is_parent, value_eval = output_rdap_generic(
+            source=source, key=key, val=val, hr=hr, show_name=show_name
+        )
+
         output = generate_output(
             line=line,
-            short=HR_RDAP[source][key]['_short'] if hr else key,
-            name=HR_RDAP[source][key]['_name'] if (hr and show_name) else None,
-            is_parent=False if (val is None or
-                                len(val) == 0) else True,
-            value='None' if (val is None or
-                             len(val) == 0) else None,
+            short=short_eval,
+            name=name_eval,
+            value=value_eval,
+            is_parent=is_parent,
             colorize=colorize
         )
 
@@ -714,14 +851,16 @@ class IPWhoisCLI:
             str: The generated output.
         """
 
+        short_eval, name_eval, is_parent, value_eval = output_rdap_generic(
+            source=source, key=key, val=val, hr=hr, show_name=show_name
+        )
+
         output = generate_output(
             line=line,
-            short=HR_RDAP[source][key]['_short'] if hr else key,
-            name=HR_RDAP[source][key]['_name'] if (hr and show_name) else None,
-            is_parent=False if (val is None or
-                                len(val) == 0) else True,
-            value='None' if (val is None or
-                             len(val) == 0) else None,
+            short=short_eval,
+            name=name_eval,
+            value=value_eval,
+            is_parent=is_parent,
             colorize=colorize
         )
 
@@ -1145,39 +1284,10 @@ class IPWhoisCLI:
                 colorize=colorize
             )
 
-            for key, val in net.items():
-
-                if val and '\n' in val:
-
-                    output += generate_output(
-                        line='2',
-                        short=HR_WHOIS['nets'][key]['_short'] if hr else key,
-                        name=HR_WHOIS['nets'][key]['_name'] if (
-                            hr and show_name) else None,
-                        is_parent=False if (val is None or
-                                            len(val) == 0) else True,
-                        value='None' if (val is None or
-                                         len(val) == 0) else None,
-                        colorize=colorize
-                    )
-
-                    for v in val.split('\n'):
-                        output += generate_output(
-                            line='3',
-                            value=v,
-                            colorize=colorize
-                        )
-
-                else:
-
-                    output += generate_output(
-                        line='2',
-                        short=HR_WHOIS['nets'][key]['_short'] if hr else key,
-                        name=HR_WHOIS['nets'][key]['_name'] if (
-                            hr and show_name) else None,
-                        value=val,
-                        colorize=colorize
-                    )
+            output += output_whois_generic(
+                value=net, line='2', hr=hr, show_name=show_name,
+                colorize=colorize
+            )
 
         return output
 
@@ -1213,39 +1323,10 @@ class IPWhoisCLI:
 
         if json_data['referral']:
 
-            for key, val in json_data['referral'].items():
-
-                if val and '\n' in val:
-
-                    output += generate_output(
-                        line='1',
-                        short=HR_WHOIS['nets'][key]['_short'] if hr else key,
-                        name=HR_WHOIS['nets'][key]['_name'] if (
-                            hr and show_name) else None,
-                        is_parent=False if (val is None or
-                                            len(val) == 0) else True,
-                        value='None' if (val is None or
-                                         len(val) == 0) else None,
-                        colorize=colorize
-                    )
-
-                    for v in val.split('\n'):
-                        output += generate_output(
-                            line='2',
-                            value=v,
-                            colorize=colorize
-                        )
-
-                else:
-
-                    output += generate_output(
-                        line='1',
-                        short=HR_WHOIS['nets'][key]['_short'] if hr else key,
-                        name=HR_WHOIS['nets'][key]['_name'] if (
-                            hr and show_name) else None,
-                        value=val,
-                        colorize=colorize
-                    )
+            output += output_whois_generic(
+                value=json_data['referral'], line='1', hr=hr,
+                show_name=show_name, colorize=colorize
+            )
 
         return output
 
